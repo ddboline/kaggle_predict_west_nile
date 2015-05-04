@@ -30,11 +30,11 @@ def transform_from_log(ly):
     return np.round(np.expm1(ly)).astype(int)
 
 def scorer(estimator, X, y):
-    ypred = estimator.predict(X)
-    return 1.0/mean_squared_error(ypred, y)
+    ypred = estimator.predict_proba(X)
+    return 1.0/roc_auc_score(y, ypred[:, 1])
 
 def train_nmosq_model(model, xtrain, ytrain, do_grid_search=False):
-    xTrain, xTest, yTrain, yTest = train_test_split(xtrain, 
+    xTrain, xTest, yTrain, yTest = train_test_split(xtrain,
                                                     ytrain[:,0],
                                                     test_size=0.5)
     n_est = [10, 20]
@@ -42,7 +42,7 @@ def train_nmosq_model(model, xtrain, ytrain, do_grid_search=False):
 
     if do_grid_search:
         model = GridSearchCV(estimator=model,
-                                    param_grid=dict(n_estimators=n_est, 
+                                    param_grid=dict(n_estimators=n_est,
                                                     max_depth=m_dep),
                                     scoring=scorer,
                                     n_jobs=-1, verbose=1)
@@ -51,16 +51,28 @@ def train_nmosq_model(model, xtrain, ytrain, do_grid_search=False):
     if hasattr(model, 'best_params_'):
         print(model.best_params_)
 
-def train_has_wnv_model(model, xtrain, ytrain):
-    xTrain, xTest, yTrain, yTest = train_test_split(xtrain, 
+def train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False):
+    xTrain, xTest, yTrain, yTest = train_test_split(xtrain,
                                                     ytrain[:,1],
                                                     test_size=0.5)
+    n_est = [10, 20]
+    m_dep = [2, 3, 4, 5, 6, 7, 10]
+
+    if do_grid_search:
+        model = GridSearchCV(estimator=model,
+                                    param_grid=dict(n_estimators=n_est,
+                                                    max_depth=m_dep),
+                                    scoring=scorer,
+                                    n_jobs=-1, verbose=1)
     model.fit(xTrain, yTrain)
     ypred = model.predict_proba(xTest)
     print(roc_auc_score(yTest, ypred[:, 1]))
+    if hasattr(model, 'best_params_'):
+        print(model.best_params_)
     return
 
-def prepare_submission(model, xtest, ytest):
+def prepare_submission(model, xtrain, ytrain, xtest, ytest):
+    model.fit(xtrain, ytrain)
     ypred = model.predict_proba(xtest)
     ytest.loc[:, 'WnvPresent'] = ypred[:, 1]
     ytest['Id'] = ytest['Id'].astype(int)
@@ -68,19 +80,19 @@ def prepare_submission(model, xtest, ytest):
 
 def my_model():
     xtrain, ytrain, xtest, ytest = load_data()
-        
-#    ytrain = transform_to_log(ytrain)
-#    
-#    model = GradientBoostingRegressor(loss='ls', verbose=1, max_depth=10, 
-#                                        n_estimators=20)
-#    train_nmosq_model(model, xtrain, ytrain)
-    
-    model = GradientBoostingClassifier(verbose=1)
 
-    train_has_wnv_model(model, xtrain ,ytrain)
-    
-    prepare_submission(model, xtest, ytest)
-    
+#    ytrain = transform_to_log(ytrain)
+#
+#    mosq_model = GradientBoostingRegressor(loss='ls', verbose=1, max_depth=7,
+#                                        n_estimators=20)
+#    train_nmosq_model(mosq_model, xtrain, ytrain, do_grid_search=False)
+
+    model = GradientBoostingClassifier(verbose=1, max_depth=3, n_estimators=100)
+
+    train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False)
+
+    prepare_submission(model, xtrain, ytrain[:, 1], xtest, ytest)
+
     return
 
 if __name__ == '__main__':
