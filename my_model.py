@@ -51,7 +51,8 @@ def train_nmosq_model(model, xtrain, ytrain, do_grid_search=False):
     if hasattr(model, 'best_params_'):
         print(model.best_params_)
 
-def train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False):
+def train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False,
+                        feature_list=None):
     xTrain, xTest, yTrain, yTest = train_test_split(xtrain,
                                                     ytrain[:,1],
                                                     test_size=0.5)
@@ -69,17 +70,23 @@ def train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False):
     print(roc_auc_score(yTest, ypred[:, 1]))
     if hasattr(model, 'best_params_'):
         print(model.best_params_)
+    if hasattr(model, 'feature_importances_') and feature_list is not None:
+        print('\n'.join(['%s: %s' % (k, v) for (k,v) in sorted(zip(feature_list, 
+               model.feature_importances_), key=lambda x: x[1])]))
     return
 
-def prepare_submission(model, xtrain, ytrain, xtest, ytest):
+def prepare_submission(model, xtrain, ytrain, xtest, ytest, feature_list=None):
     model.fit(xtrain, ytrain)
+    if hasattr(model, 'feature_importances_') and feature_list is not None:
+        print('\n'.join(['%s: %s' % (k, v) for (k,v) in sorted(zip(feature_list, 
+               model.feature_importances_), key=lambda x: x[1])]))
     ypred = model.predict_proba(xtest)
     ytest.loc[:, 'WnvPresent'] = ypred[:, 1]
     ytest['Id'] = ytest['Id'].astype(int)
     ytest.to_csv('submission.csv', index=False)
 
 def my_model():
-    xtrain, ytrain, xtest, ytest = load_data()
+    xtrain, ytrain, xtest, ytest, features = load_data()
 
 #    ytrain = transform_to_log(ytrain)
 #
@@ -87,11 +94,14 @@ def my_model():
 #                                        n_estimators=20)
 #    train_nmosq_model(mosq_model, xtrain, ytrain, do_grid_search=False)
 
-    model = GradientBoostingClassifier(verbose=1, max_depth=3, n_estimators=100)
+    model = GradientBoostingClassifier(verbose=1, max_depth=3, 
+                                       n_estimators=100)
 
-    train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False)
+    train_has_wnv_model(model, xtrain, ytrain, do_grid_search=False, 
+                        feature_list=features)
 
-    prepare_submission(model, xtrain, ytrain[:, 1], xtest, ytest)
+    prepare_submission(model, xtrain, ytrain[:, 1], xtest, ytest, 
+                       feature_list=features)
 
     return
 

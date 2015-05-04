@@ -34,7 +34,7 @@ def clean_data(df):
                          'wpFZFG', 'wpFZRA', 'wpGR', 'wpGS', 'wpMIFG', 'wpPL',
                          'wpPRFG', 'wpSG', 'wpSN', 'wpSQ', 'wpTSSN', 'wpUP',
                          'wpVCFG', 'AddressAccuracy', 'WetBulb', 
-                         'StnPressure'], axis=1)
+                         'StnPressure', 'Latitude', 'Longitude'], axis=1)
     return df
 
 def load_data(do_plots=False):
@@ -59,14 +59,17 @@ def load_data(do_plots=False):
         plot_data(train_df, prefix='train_html')
         plot_data(test_df, prefix='test_html')
 
+    features = train_df.drop(labels=['NumMosquitos', 'WnvPresent'],
+                           axis=1).columns
+
     xtrain = train_df.drop(labels=['NumMosquitos', 'WnvPresent'],
                            axis=1).values
     ytrain = train_df[['NumMosquitos', 'WnvPresent']].values
     xtest = test_df.drop(labels=['Id'], axis=1).values
     ytest = submit_df
-    return xtrain, ytrain, xtest, ytest
+    return xtrain, ytrain, xtest, ytest, features
 
 if __name__ == '__main__':
-    xtrain, ytrain, xtest, ytest = load_data(do_plots=False)
+    xtrain, ytrain, xtest, ytest, features = load_data(do_plots=False)
 
     print([df.shape for df in (xtrain, ytrain, xtest, ytest)])
